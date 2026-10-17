@@ -143,8 +143,8 @@ def fallback_h1(eng, detail: pd.DataFrame, sources: dict, live_issue: pd.Timesta
                  else i + pd.Timedelta(minutes=S.ISSUE_DELAY_MIN)) for i in {g[1] for g in gaps}}
     with eng.connect() as c:
         t = pd.DataFrame(c.execute(sa.text(FALLBACK_SQL.format(table=db.table(S.FORECAST_TABLE_ENV))), {
-            "farms": list(farms), "ids": list(S.H1_FALLBACK_IDS), "t0": min(stamp).floor("h"),
-            "t1": max(stamp).floor("h") + HOUR, "t_max": max(stamp)}).fetchall(),
+            "farms": list(farms), "ids": list(S.H1_FALLBACK_IDS), "t0": min(stamp),
+            "t1": max(stamp) + HOUR, "t_max": max(stamp.values())}).fetchall(),
             columns=["farmid", "id_source", "slot_ts", "run", "mw"])
     for col in ("slot_ts", "run"):
         t[col] = pd.to_datetime(t[col], utc=True)
@@ -292,7 +292,8 @@ def _weather_complete(fam, detail: pd.DataFrame, start: pd.Timestamp, end: pd.Ti
 
 
 def backfill_write(fam, start_day: str, end_day: str) -> None:
-    """Write the rows CSV of an earlier backfill dry run (only runs newer than the table's are written)."""
+    """Write the rows CSV of an earlier backfill dry run: runs (issue hours) not yet in the table are written; one
+    becomes current only if no later run of its slot is current."""
     rows_path, _ = backfill_paths(fam, start_day, end_day)
     if not rows_path.exists():
         raise SystemExit(f"{rows_path} not found: run the backfill without --write first")
