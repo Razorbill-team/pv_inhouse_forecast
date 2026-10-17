@@ -22,6 +22,9 @@ If a 1-hour source has no value for an hour (plant data missing), the 48-hour fo
 its id instead (112, else 110, else 111); the log says FALLBACK. The weather forecasts come from Open-Meteo; this
 repo also collects them (`run.py weather`) into `integration_schema.open_meteo_forecast_hourly`.
 
+More: [docs/HOW_IT_WORKS.md](docs/HOW_IT_WORKS.md) (how it works), [docs/OPERATIONS.md](docs/OPERATIONS.md) (daily
+check, every log message and what to do), [docs/ACCURACY.md](docs/ACCURACY.md), [docs/VERIFICATION.md](docs/VERIFICATION.md).
+
 ## Install (Linux)
 
 Python 3.12 or newer (Ubuntu 22.04's `python3` is 3.10: install 3.12), git, access to the production database and
@@ -40,18 +43,21 @@ cp .env.example .env && nano .env && chmod 600 .env    # fill every field (comme
 ## First start
 
 ```bash
-.venv/bin/python run.py weather          # weather runs of the last 7 days; the log must end "0 failure(s)"
-.venv/bin/python run.py train h1 --end 2026-10-17     # --end = first local day NOT used (see below)
-.venv/bin/python run.py train h48 --end 2026-10-17
-.venv/bin/python run.py status           # shows the candidate versions
-.venv/bin/python run.py promote h1 <version>
-.venv/bin/python run.py promote h48 <version>
-.venv/bin/python run.py hourly --dry-run # computes, saves a CSV in reports/, writes nothing (reads FORECAST_DB_URL)
+.venv/bin/python run.py weather          # weather runs of the last 7 days; the last line must say "0 failure(s)"
+.venv/bin/python run.py train h1 --end 2026-10-17     # about 3 min; use exactly this date for the first deployment
+.venv/bin/python run.py train h48 --end 2026-10-17    # about 3 min
+.venv/bin/python run.py status           # lists the saved versions, e.g. 2026-10-17_20261018T091500Z
+.venv/bin/python run.py promote h1 <version shown for h1>
+.venv/bin/python run.py promote h48 <version shown for h48>
+.venv/bin/python run.py hourly --dry-run # computes and saves a CSV in reports/; writes nothing to the table
 ```
 
-`--end`: a model is never used for hours before its training end, so it must not be later than the newest hour
-already in `forecast_internal` (the first deployment: 2026-10-17). If the log warns "issue hours ... before the
-active model's training end", fill them: `run.py backfill FAMILY START END`, check the CSV, then add `--write`.
+The dry run is good when its last line says `done; failed: none`. Then add the schedule below.
+
+Why `--end 2026-10-17`: a model never forecasts hours before its training end, and the table already holds
+forecasts up to 2026-10-17. With this date the first hourly run fills every hour since then by itself (up to 48 h).
+If the log still warns "issue hours ... before the active model's training end", fill them with
+`run.py backfill FAMILY START END`, check the CSV in `reports/`, then run the same command with `--write`.
 
 ## Schedule (crontab -e, same user as the install)
 
@@ -65,6 +71,17 @@ The hourly job fills missed hours by itself (up to 48 h back), so a short outage
 `run.py backfill FAMILY START END`, check the CSV in `reports/`, then the same command with `--write` (only runs
 not yet in the table are written; a gap between written hours is filled). A backfill refuses to run while the
 weather of its days is incomplete: run `run.py weather FIRST LAST` first (the message says which days).
+
+## Check it works
+
+After the first scheduled hour: `tail -20 logs/run_$(date +%Y-%m).log`. A good hour has two `wrote ... new rows` lines
+(one for h48, one for h1) and ends with `done; failed: none`. `logs/cron.log` must stay empty. Every message and what to
+do: [docs/OPERATIONS.md](docs/OPERATIONS.md).
+
+## Update the code
+
+`git pull` in the install folder; the next cron run uses the new code. Saved models stay as they are; retrain only
+if the change says so (a new farm, a changed model). Never edit files on the server: change them in git.
 
 ## Retraining (never automatic; a person decides)
 
