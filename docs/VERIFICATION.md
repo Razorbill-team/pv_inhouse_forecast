@@ -106,6 +106,26 @@ weather first) are fixed.
 
 Re-test of the fixed code: see the appendix below.
 
+## 9. The shipped models and how long they stay good
+
+The models in `saved_models/` (trained on data before 2026-10-17) were rebuilt by the earlier, separately tested
+code: every parameter and every XGBoost model is identical (difference 0.0; the XGBoost files byte for byte), and
+both give identical forecasts for 2026-10-17.
+
+How long can a model run without retraining? The same test days were forecast by models trained 0, 7, 14, 21, 28
+and 42 days before them (two test windows: 2026-09-23 .. 10-02 and 2026-10-07 .. 10-16):
+
+| Model age | Change in error (points of nameplate), sources 100, 102, 103, 110, 112 |
+|---|---|
+| 1 week | -0.1 .. +0.14 (no real difference) |
+| 2 weeks | -0.2 .. +0.17 (no real difference) |
+| 3-6 weeks | 1-hour sources: +0.3 .. +1.1 in one window, none in the other; 48-hour 110 / 112: at most +0.2 |
+
+So a model runs safely for 1-2 weeks; the log reminds after 14 days (`MODEL_MAX_AGE_DAYS`). Through November,
+retrain every 1-2 weeks so that the lower sun of late autumn enters the training data. Source 111 (XGBoost)
+changes by up to 0.8 points from one training to the next whatever its age; 112 remains the better 48-hour
+source. Snow, frost or fog on panels never occurred in the training data.
+
 ## Appendix: re-test of the final code
 
 The failure simulations and a real-data check were run again on the fixed code:
