@@ -98,9 +98,10 @@ skipped because the previous run still held the lock leaves no line; the next ho
 
 ## Retraining (later, only when needed)
 
-Not part of the deployment: the first start above already trains and promotes the models. Use this only when
-the log warns that the active model is older than 14 days, or after a change that needs new models. Never
-automatic; a person decides.
+Not part of the deployment: the repository ships trained, active models (see First start). Use this only when the
+log warns that the active model is older than 14 days (first on 2026-10-30), or after a change that needs new
+models. Tests show a model stays as good for 1-2 weeks; through November retrain every 1-2 weeks
+(docs/VERIFICATION.md, section 9). Never automatic; a person decides.
 
 ```bash
 .venv/bin/python run.py compare h1       # report in reports/: REPLACE / KEEP / NO CLEAR DIFFERENCE
