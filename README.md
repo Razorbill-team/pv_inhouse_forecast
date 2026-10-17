@@ -69,6 +69,12 @@ not yet in the table are written; a gap between written hours is filled).
 14 days (same hours, data neither model was trained on). The hourly job warns in the log when the active model is
 older than 14 days.
 
+## Open-Meteo licence
+
+Without a key the free tier is used (non-commercial only). With a paid plan, put the key in `.env` as
+`OPEN_METEO_API_KEY`; the next `run.py weather` uses the customer address (its first log line says which). The plan
+must include the Single Runs API (API Professional). The server needs access to `*.open-meteo.com`.
+
 ## Logs
 
 `logs/run_YYYY-MM.log`, one line per step. `ERROR` = a family wrote nothing this hour (exit code 1). `WARN` = written,

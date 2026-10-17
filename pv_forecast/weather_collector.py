@@ -10,12 +10,17 @@ itself; runs already stored are not downloaded again). With FIRST [LAST] UTC day
 
 Time convention: Open-Meteo stamps an hourly value with the END of its hour; radiation is the mean over that hour.
 A row is labelled by its start: slot_start_utc = stamp - 1 h. global_tilted_irradiance is on each site's panel
-plane (Open-Meteo azimuth 0 = south). Missing values stay NULL. Licence: the free tier is for non-commercial use.
+plane (Open-Meteo azimuth 0 = south). Missing values stay NULL.
+
+Licence: the free tier is for non-commercial use. With a paid plan (API Professional: it includes the Single Runs
+API), put its key in OPEN_METEO_API_KEY: the forecast requests then go to the customer address with the key. Empty or
+unset: the free address, no key. The key never appears in the logs.
 """
 
 from __future__ import annotations
 
 import json
+import os
 import time
 
 import pandas as pd
@@ -26,7 +31,9 @@ from . import db
 from . import settings as S
 from .log import log
 
-FORECAST_URL = "https://single-runs-api.open-meteo.com/v1/forecast"
+FORECAST_URL = "https://single-runs-api.open-meteo.com/v1/forecast"                  # free, no key
+CUSTOMER_FORECAST_URL = "https://customer-single-runs-api.open-meteo.com/v1/forecast"   # paid plan, with the key
+API_KEY_ENV = "OPEN_METEO_API_KEY"
 RUN_EVERY = pd.Timedelta(hours=6)
 HOURS = 72
 HOUR = pd.Timedelta(hours=1)
@@ -79,6 +86,18 @@ class ApiLimit(Exception):
 
 # ------------------------------------------------------------------ API
 
+def api_key() -> str:
+    """The Open-Meteo key from the environment or .env; empty = free tier."""
+    db.load_settings()
+    return os.environ.get(API_KEY_ENV, "").strip()
+
+
+def hide(text: str) -> str:
+    """`text` with the key replaced by ***, for log lines and error messages (they may contain the request URL)."""
+    key = api_key()
+    return text.replace(key, "***") if key else text
+
+
 def is_json(r: requests.Response) -> bool:
     try:
         return isinstance(json.loads(r.content), dict)
@@ -96,7 +115,7 @@ def get(url: str, params: dict | None = None) -> requests.Response:
         except requests.RequestException as exc:
             if attempt == RETRIES - 1:
                 raise
-            log(f"  {type(exc).__name__}: {str(exc)[:200]}; retrying in {wait} s", "WARN")
+            log(hide(f"  {type(exc).__name__}: {str(exc)[:200]}; retrying in {wait} s"), "WARN")
         else:
             if r.status_code == 429 and ("Hourly" in r.text or "Daily" in r.text):
                 raise ApiLimit(f"Open-Meteo request limit used up: {r.text[:200]}; run again later")
@@ -123,7 +142,9 @@ def newest_run(model: str) -> tuple[pd.Timestamp, pd.Timestamp | None]:
 def fetch_run(site: str, run: pd.Timestamp, model: str) -> pd.DataFrame:
     """One run of `model` at one site in the table layout (HOURS - 1 rows, lead 0 .. HOURS - 2 h)."""
     s = SITES[site]
-    r = get(FORECAST_URL, {"latitude": s["latitude"], "longitude": s["longitude"], "models": model,
+    key = api_key()
+    url, auth = (CUSTOMER_FORECAST_URL, {"apikey": key}) if key else (FORECAST_URL, {})
+    r = get(url, {**auth, "latitude": s["latitude"], "longitude": s["longitude"], "models": model,
                            "hourly": ",".join(MODELS[model]["variables"]), "timezone": "UTC",
                            "wind_speed_unit": "ms", "tilt": s["tilt"], "azimuth": s["azimuth"],
                            "run": f"{run:%Y-%m-%dT%H:%M}", "forecast_hours": HOURS})
@@ -203,7 +224,7 @@ def collect_runs(eng: sa.Engine, model: str, runs: list[pd.Timestamp], fresh: pd
                 raise
             except Exception as exc:                        # noqa: BLE001 - one bad run must not stop the rest
                 failures += 1
-                log(f"  {name} FAILED: {type(exc).__name__}: {str(exc)[:300]}", "ERROR")
+                log(hide(f"  {name} FAILED: {type(exc).__name__}: {str(exc)[:300]}"), "ERROR")
     return failures
 
 
@@ -219,6 +240,7 @@ def collect(first: pd.Timestamp | None = None, last: pd.Timestamp | None = None,
 
 def _collect(first, last, models) -> int:
     eng = db.write_engine(S.WEATHER_DB_ENV, S.WEATHER_TABLE_ENV)
+    log(f"weather: Open-Meteo {'paid plan (API key set)' if api_key() else 'free tier (no API key)'}")
     failures = 0
     for model in models or list(MODELS):
         try:

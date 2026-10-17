@@ -15,9 +15,14 @@ from . import settings as S
 TABLE_NAME = re.compile(r"[a-z_][a-z0-9_]{0,62}\.[a-z_][a-z0-9_]{0,62}")
 
 
+def load_settings() -> None:
+    """Load the .env file in the repository folder into the environment (an already set variable wins)."""
+    load_dotenv(S.ROOT / ".env")
+
+
 def setting(key: str) -> str:
     """Environment variable `key`, or from the .env file in the repository folder (a set variable wins)."""
-    load_dotenv(S.ROOT / ".env")
+    load_settings()
     value = os.environ.get(key, "").strip()
     if not value:
         raise SystemExit(f"environment variable {key} is not set (see .env.example)")
