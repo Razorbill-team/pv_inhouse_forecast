@@ -1,0 +1,14 @@
+# Versions the forecast was built and tested with (Python 3.13). Needs Python >= 3.12 (numpy, scipy, xgboost)
+# and glibc >= 2.28 on Linux (Ubuntu 20.04+, Debian 10+, RHEL 8+; not Alpine)
+numpy==2.5.3
+pandas==3.0.5
+SQLAlchemy==2.0.52
+psycopg2-binary==2.9.13
+python-dotenv==1.2.3
+pvlib==0.16.1
+statsmodels==0.15.0
+scipy==1.18.1
+scikit-learn==1.9.0                 # xgboost's XGBRegressor needs it
+xgboost==3.4.1
+tzdata==2026.3                      # time zones without the system database
+requests==2.34.2

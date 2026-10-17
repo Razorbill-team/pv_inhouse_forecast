@@ -1,0 +1,10 @@
+# Secrets
+.env
+# Python
+.venv/
+__pycache__/
+*.pyc
+# Made on the server, not code: trained models, logs, reports
+saved_models/
+logs/
+reports/
