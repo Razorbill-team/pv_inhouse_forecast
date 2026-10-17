@@ -150,11 +150,14 @@ def fallback_h1(eng, detail: pd.DataFrame, sources: dict, live_issue: pd.Timesta
         return detail
     stamp = {i: (min(now, i + pd.Timedelta(minutes=59)) if i == live_issue
                  else i + pd.Timedelta(minutes=S.ISSUE_DELAY_MIN)) for i in {g[1] for g in gaps}}
-    with eng.connect() as c:
-        t = pd.DataFrame(c.execute(sa.text(FALLBACK_SQL.format(table=db.table(S.FORECAST_TABLE_ENV))), {
-            "farms": list(farms), "ids": list(S.H1_FALLBACK_IDS), "t0": min(stamp),
-            "t1": max(stamp) + HOUR, "t_max": max(stamp.values())}).fetchall(),
-            columns=["farmid", "id_source", "slot_ts", "run", "mw"])
+    try:
+        with eng.connect() as c:
+            t = pd.DataFrame(c.execute(sa.text(FALLBACK_SQL.format(table=db.table(S.FORECAST_TABLE_ENV))), {
+                "farms": list(farms), "ids": list(S.H1_FALLBACK_IDS), "t0": min(stamp),
+                "t1": max(stamp) + HOUR, "t_max": max(stamp.values())}).fetchall(),
+                columns=["farmid", "id_source", "slot_ts", "run", "mw"])
+    except sa.exc.OperationalError as exc:                  # name the forecast database, not the plant one
+        raise RuntimeError(f"fallback cannot read the forecast table: {db.describe(eng, exc)}") from None
     for col in ("slot_ts", "run"):
         t[col] = pd.to_datetime(t[col], utc=True)
     t["farm"], t["mw"] = t["farmid"].map(farms), t["mw"].astype(float)
