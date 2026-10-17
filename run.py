@@ -1,4 +1,4 @@
-"""PV forecast: every command in one place (see README.md).
+"""PV forecast, internally built (our own models): every command in one place (see README.md).
 
     python run.py hourly [--dry-run] [--no-wait]       forecast the current hour (and fill missed hours), all families
     python run.py weather [FIRST [LAST]] [--models M]  store new weather forecast runs (backfill with UTC days)

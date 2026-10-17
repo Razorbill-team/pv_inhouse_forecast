@@ -1,5 +1,8 @@
 # pv_forecast
 
+**Internally built PV forecasts**: our own models, trained on our plant data and public weather forecasts
+(Open-Meteo). No vendor forecasts here; vendor forecasts (e.g. Meteologica, id 120) are loaded separately.
+
 PV power forecast for the PPA farms Radeni (farm 30) and Negureni (farm 29), and the FREE farms at the same sites
 (farms 2 and 1, the PPA forecast rescaled). Every hour it writes 15-min forecasts in MW to
 `integration_schema.forecast_internal`:
