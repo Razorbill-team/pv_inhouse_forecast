@@ -214,6 +214,14 @@ def fit(data: dict, fit_end: pd.Timestamp) -> dict:
     return out
 
 
+def weather_holes(data: dict) -> list[str]:
+    """Issue hours of the data without a usable ECMWF or ICON-EU run (training and backfill need none)."""
+    return [f"{farm}: {c['pairs'][k]} issue hours without a usable {name} run" for farm, c in
+            ((f, d["counts"]) for f, d in data.items())
+            for k, name in (("issues_without_run", "ECMWF"), ("icon_issues_without_run", "ICON-EU"))
+            if c["pairs"][k]]
+
+
 def problems(fitted: dict) -> list[str]:
     return [f"{farm} {m} ARMA did not converge or had nothing to fit" for farm, f in fitted["farms"].items()
             for m in LINEAR_FEATURES if not f[m]["info"]["arma_converged"]]
@@ -277,10 +285,12 @@ def _predict_farm(p_all: pd.DataFrame, f: dict, xgb_model, issues: pd.DatetimeIn
         lin = pd.Series(p[feats].to_numpy() @ beta, index=p.index)
         u = errors(p_all, beta, feats)                          # errors before each issue, from the data read
         e = arma_errors(params, u, issues if params is not None else issues[:0])   # ARMA not converged: missing
-        err = pd.Series(e.set_index(["issue_utc", "slot_utc"])["err"].reindex(key).to_numpy(), index=p.index)
+        err = pd.Series(e.set_index(["issue_utc", "slot_utc"])["err"].reindex(key).to_numpy(dtype=float),
+                        index=p.index)
         out[f"linear{sfx}"], out[f"arma_err{sfx}"] = lin, err.where(short)
         out[model] = lin + out[f"arma_err{sfx}"].where(short, 0.0)
-    out["xgboost"] = out["linear"] + xgb_model.predict(p[XGB_FEATURES]) * p["nameplate_mw"]
+    xgb_err = xgb_model.predict(p[XGB_FEATURES]).reshape(-1) if len(p) else np.zeros(0)
+    out["xgboost"] = out["linear"] + xgb_err * p["nameplate_mw"]
     night = p["poa_clearsky"] <= 0
     out.loc[night, ["linear", "arimax", "xgboost"]] = 0.0
     if f["arimax_ecmwf_icon"]["beta"] is not None:              # 112 at night only where an ICON-EU run exists
