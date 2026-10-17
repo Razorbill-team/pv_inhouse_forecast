@@ -110,7 +110,8 @@ def pairs(farm: S.Farm, mw: pd.Series, geo: pd.DataFrame, wx: pd.DataFrame, wx_i
             f["ic_run_utc"] = ic_times.iloc[j]
         out.append(f)
     if not out:
-        raise ValueError(f"{farm.name}: no ECMWF run published by any issue {issues[0]} .. {issues[-1]}")
+        raise RuntimeError(f"no rows: no usable ECMWF run (published, at most {MAX_WEATHER_AGE_H} h old) for any "
+                           f"issue {issues[0]:%m-%d %H}Z .. {issues[-1]:%m-%d %H}Z; is run.py weather running?")
     p = pd.concat(out, ignore_index=True)
     p["ic_run_utc"] = pd.to_datetime(p["ic_run_utc"], utc=True)
     p["lead_h"] = (p["slot_utc"] - p["issue_utc"]) / pd.Timedelta(hours=1)

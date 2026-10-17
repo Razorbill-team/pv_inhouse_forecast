@@ -123,6 +123,8 @@ def hourly(dry_run: bool = False, no_wait: bool = False) -> int:
         except (Exception, SystemExit) as exc:              # one family failing must not stop the other
             if isinstance(exc, sa.exc.OperationalError):    # plant / weather database: say it plainly
                 log(f"{fam.NAME}: FAILED reading production: {db.describe(read_eng, exc)}", "ERROR")
+            elif isinstance(exc, RuntimeError):              # our own clear messages: no traceback needed
+                log(f"{fam.NAME}: FAILED {exc}", "ERROR")
             else:
                 log(f"{fam.NAME}: FAILED {type(exc).__name__}: {exc} | {traceback.format_exc()[-1500:]}", "ERROR")
             failed.append(fam.NAME)
