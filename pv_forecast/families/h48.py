@@ -146,7 +146,7 @@ def read(eng, start: pd.Timestamp, end: pd.Timestamp) -> dict:
         wx = inputs.weather_runs(eng, farm, start, end + HORIZON, "ecmwf_ifs", WEATHER_COLS)
         wx_ic = inputs.weather_runs(eng, farm, start, end + HORIZON, "icon_eu", ICON_COLS, required=False)
         p, pc = pairs(farm, cf * farm.nameplate_mw, geo, wx, wx_ic, issues)
-        out[farm.name] = {"pairs": p, "counts": {"plant": counts, "pairs": pc}}
+        out[farm.name] = {"cf": cf, "pairs": p, "counts": {"plant": counts, "pairs": pc}}
     return out
 
 

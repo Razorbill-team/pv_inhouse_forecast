@@ -62,6 +62,9 @@ not yet in the table are written; a gap between written hours is filled).
 .venv/bin/python run.py rollback h1      # if needed: back to the version active before
 ```
 
+`train` saves nothing if a farm has fewer than 28 days of plant data, or fewer than 5 of the last 7 days
+(the log says why; the active model stays). `status` shows how many days each version learned from.
+
 `compare` trains a test model on the data up to 14 days ago and scores it against the active model on the last
 14 days (same hours, data neither model was trained on). The hourly job warns in the log when the active model is
 older than 14 days.

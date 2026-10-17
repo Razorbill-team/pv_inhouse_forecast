@@ -7,6 +7,7 @@
 
     read(eng, start, end)            -> data: every input of every PPA farm, plant data from `start`, enough for
                                         issues in [start + HISTORY, end) (and their actuals as far as they exist);
+                                        data[farm]["cf"] = plant capacity factor per slot (data checks);
                                         data[farm]["counts"] = input quality counts for the log
     fit(data, fit_end)               -> fitted: trained on what was known before fit_end only
     problems(fitted)                 -> list of words: a fit that must not be used (e.g. not converged)

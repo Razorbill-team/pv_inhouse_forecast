@@ -192,6 +192,28 @@ def _log_inputs(fam, data: dict, detail: pd.DataFrame, hour: pd.Timestamp) -> No
 
 # ------------------------------------------------------------------ train
 
+def data_check(data: dict, end: pd.Timestamp) -> tuple[dict, list[str]]:
+    """Per farm, how much plant data training has before `end`: days with data (>= half the day's slots present),
+    of them in the last 7 days, first and last such day, share of missing slots. Returns (summary, problems):
+    a problem is fewer than MIN_TRAIN_DAYS days, or fewer than MIN_RECENT_DAYS in the last 7."""
+    summary, problems = {}, []
+    for farm, d in data.items():
+        cf = d["cf"][d["cf"].index < end]
+        cf = cf[cf.first_valid_index():] if cf.notna().any() else cf
+        per_day = cf.notna().groupby(cf.index.tz_convert(S.LOCAL_TZ).date).sum()
+        days = per_day[per_day >= 48].index
+        recent = [x for x in days if x >= (end - pd.Timedelta(days=7)).tz_convert(S.LOCAL_TZ).date()]
+        summary[farm] = {"days": len(days), "first": str(min(days, default="-")), "last": str(max(days, default="-")),
+                         "last_7_days": len(recent), "missing_pct": round(100 * float(cf.isna().mean()), 1)}
+        log(f"{farm}: {len(days)} days with data ({summary[farm]['first']} .. {summary[farm]['last']}), "
+            f"{len(recent)}/7 last days, missing slots {summary[farm]['missing_pct']} %")
+        if len(days) < S.MIN_TRAIN_DAYS:
+            problems.append(f"{farm} has {len(days)} days of data (need {S.MIN_TRAIN_DAYS})")
+        if len(recent) < S.MIN_RECENT_DAYS:
+            problems.append(f"{farm} has {len(recent)} of the last 7 days (need {S.MIN_RECENT_DAYS})")
+    return summary, problems
+
+
 def train(fam, end_day: str | None = None) -> str:
     """Fit on TRAIN_START .. end_day (default today, local) and save a candidate. Returns the version."""
     end = utc(end_day) if end_day else today_utc()
@@ -199,11 +221,15 @@ def train(fam, end_day: str | None = None) -> str:
         raise SystemExit(f"--end {end_day} is in the future: the model would block forecasts until then")
     log(f"{fam.NAME}: training on {S.TRAIN_START} .. {end.tz_convert(S.LOCAL_TZ):%Y-%m-%d} (local days)")
     data = fam.read(db.engine(S.READ_DB_ENV), utc(S.TRAIN_START), end)
+    checked, bad = data_check(data, end)
+    if bad:
+        raise SystemExit(f"train {fam.NAME}: NOT saved: {bad}; the active model stays as it is")
     fitted = fam.fit(data, end)
     bad = fam.problems(fitted)
     if bad:
-        raise SystemExit(f"{fam.NAME}: NOT saved: {bad}")
-    version = registry.save(fam, fitted, end, {"data_counts": {k: v["counts"] for k, v in data.items()}})
+        raise SystemExit(f"train {fam.NAME}: NOT saved: {bad}; the active model stays as it is")
+    version = registry.save(fam, fitted, end, {"data_check": checked,
+                                               "data_counts": {k: v["counts"] for k, v in data.items()}})
     log(f"{fam.NAME}: saved candidate {version} (not active). Next: run.py compare {fam.NAME}; "
         f"run.py promote {fam.NAME} {version}")
     return version

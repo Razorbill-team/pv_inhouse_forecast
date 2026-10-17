@@ -96,6 +96,8 @@ MODEL_MAX_AGE_DAYS = 14             # the hourly job warns when the active model
 H1_FALLBACK_IDS = (112, 110, 111)  # 1-hour source without a value (plant data missing): the 48-hour forecast of
                                     # the same hour, first of these with all 4 quarters; logged, same id and name
 WEATHER_OLD_H = 20                  # ... and when a weather run used is older than this at the issue (normal: < 14 h)
+MIN_TRAIN_DAYS = 28                 # train refuses to save a farm with fewer days of plant data (>= half a day each)
+MIN_RECENT_DAYS = 5                 # ... or fewer of them in the last 7 days before the training end
 BLOCK_ANCHOR = "2026-08-12"         # backfill: models refitted every RETRAIN_DAYS from this local day
 RETRAIN_DAYS = 7
 DAYLIGHT_MW = 0.5                   # scoring: hours with actual >= 0.5 MW

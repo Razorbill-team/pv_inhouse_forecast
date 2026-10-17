@@ -37,8 +37,10 @@ def status() -> int:
         for v in registry.versions(name):
             m = registry.meta(name, v)
             end = pd.Timestamp(m["trained_to_utc"])
+            days = ", ".join(f"{f} {c['days']} days" for f, c in m.get("data_check", {}).items())
             print(f"  {'*' if v == act else ' '} {v}  data before {compare.local_day(end)} local "
-                  f"({(now - end) / pd.Timedelta(days=1):.1f} days ago), code {m['code_version']}")
+                  f"({(now - end) / pd.Timedelta(days=1):.1f} days ago){'; ' + days if days else ''}, "
+                  f"code {m['code_version']}")
     return 0
 
 
