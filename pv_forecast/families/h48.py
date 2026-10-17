@@ -4,8 +4,8 @@ As researched in 3_train_test_model/h48_ahead (ladder.py, re-selection 2026-10-1
   110  linear GTI + DNI x cloud (no intercept, per farm), plus an ARMA(2,0,2) forecast of its error for leads < 6 h
   111  the same linear model, plus an XGBoost forecast of its error (one model for both farms)
   112  as 110, but GTI and DNI x cloud are each the mean of ECMWF IFS and DWD ICON-EU
-Weather: the newest ECMWF run published by H (run + 8 h) and the newest ICON-EU long run (run + 5 h). No ICON-EU run:
-no 112 rows (110 / 111 are not affected). Sun down at the slot middle: 0 MW.
+Weather: the newest ECMWF run published by H (run + 8 h) and the newest ICON-EU long run (run + 5 h), each at most
+MAX_WEATHER_AGE_H old. No ECMWF run: no rows for that issue; no ICON-EU run: no 112 rows (110 / 111 not affected). Sun down at the slot middle: 0 MW.
 
 pairs()  one row per (issue H, slot T): lead, the weather of T's hour from the runs above, sun geometry at T, the
          actual MW (for fitting and scoring only) and the model inputs.
@@ -44,6 +44,7 @@ ICON_COLS = {"global_tilted_irradiance": "ic_gti", "ghi": "ic_ghi", "dhi": "ic_d
              "cloud_cover": "ic_cloud_cover"}
 ICON_RUN_CHECK_COLS = ["ic_gti", "ic_ghi", "ic_dhi"]
 ICON_PUBLISH_DELAY_H = 5            # long runs published ~3-4 h after their start, + 1 h margin
+MAX_WEATHER_AGE_H = 30              # a run older than this at the issue is not used (normal age: up to 14 h)
 
 # ---- models
 FARM_FLAG_SITE = "radeni"           # XGBoost farm flag: 1 for radeni, 0 for negureni
@@ -90,8 +91,8 @@ def pairs(farm: S.Farm, mw: pd.Series, geo: pd.DataFrame, wx: pd.DataFrame, wx_i
     ic_published = ic_times + pd.Timedelta(hours=ICON_PUBLISH_DELAY_H)
     out, no_run, no_icon = [], 0, 0
     for h in issues:
-        i = published.searchsorted(h, side="right") - 1          # newest run published by h
-        if i < 0:
+        i = published.searchsorted(h, side="right") - 1          # newest run published by h, not too old
+        if i < 0 or h - run_times.iloc[i] > pd.Timedelta(hours=MAX_WEATHER_AGE_H):
             no_run += 1
             continue
         run = run_times.iloc[i]
@@ -101,7 +102,7 @@ def pairs(farm: S.Farm, mw: pd.Series, geo: pd.DataFrame, wx: pd.DataFrame, wx_i
         f.insert(0, "issue_utc", h)
         f["run_utc"] = run
         j = ic_published.searchsorted(h, side="right") - 1
-        if j < 0:
+        if j < 0 or h - ic_times.iloc[j] > pd.Timedelta(hours=MAX_WEATHER_AGE_H):
             no_icon += 1
             f[ic_cols], f["ic_run_utc"] = np.nan, pd.NaT
         else:

@@ -5,8 +5,8 @@ forecast). Rows are only inserted, never changed or deleted; an existing key is 
   ecmwf_ifs  runs 00/06/12/18 UTC, published ~6.5 h later
   icon_eu    runs every 3 h, but only 00/06/12/18 UTC reach 72 h, so only those are stored; published ~3-4 h later;
              fewer variables (the others stay NULL)
-Without days (hourly): each model's newest long run and the LOOKBACK runs before it (24 h, so an outage fills
-itself). With FIRST [LAST] UTC days: every run started in those days (Open-Meteo keeps runs from 2024-03-14).
+Without days (hourly): each model's newest long run and the LOOKBACK runs before it (7 days, so an outage fills
+itself; runs already stored are not downloaded again). With FIRST [LAST] UTC days: every run started in those days (Open-Meteo keeps runs from 2024-03-14).
 
 Time convention: Open-Meteo stamps an hourly value with the END of its hour; radiation is the mean over that hour.
 A row is labelled by its start: slot_start_utc = stamp - 1 h. global_tilted_irradiance is on each site's panel
@@ -30,7 +30,7 @@ FORECAST_URL = "https://single-runs-api.open-meteo.com/v1/forecast"
 RUN_EVERY = pd.Timedelta(hours=6)
 HOURS = 72
 HOUR = pd.Timedelta(hours=1)
-LOOKBACK = 4                        # hourly mode also checks the 4 runs before the newest (24 h of outage)
+LOOKBACK = 28                       # hourly mode also checks the 28 runs before the newest (7 days of outage)
 PUBLISH_GRACE = pd.Timedelta(hours=2)
 RETRIES, RETRY_BASE_S = 4, 15
 TIMEOUT_S = (10, 90)

@@ -267,6 +267,7 @@ def backfill(fam, start_day: str, end_day: str) -> pd.DataFrame:
         out.append(fam.predict(data, fitted, issues).assign(trained_to_utc=b0))
         log(f"{fam.NAME} block {b0:%Y-%m-%d}: {len(issues)} issues in {time.monotonic() - t:.0f} s")
     detail = pd.concat(out, ignore_index=True)
+    _weather_complete(fam, detail, start, end)
     rows = writer.rows(detail, fam.SOURCES, None, pd.Timestamp.now(tz="UTC"))
     rows_path, detail_path = backfill_paths(fam, start_day, end_day)
     S.REPORT_DIR.mkdir(exist_ok=True)
@@ -275,6 +276,19 @@ def backfill(fam, start_day: str, end_day: str) -> pd.DataFrame:
     log(f"{fam.NAME}: {len(rows)} rows ({rows.groupby(['farmid', 'id_source']).size().to_dict()}) -> {rows_path}")
     print(compare.scores(detail, fam.SOURCES).to_string(index=False))
     return rows
+
+
+def _weather_complete(fam, detail: pd.DataFrame, start: pd.Timestamp, end: pd.Timestamp) -> None:
+    """A backfill runs only when every issue hour of its window has its weather (ECMWF and ICON-EU) and so every
+    source can be made; otherwise it stops and says which weather days to collect first."""
+    issues = pd.date_range(start, end, freq="h", inclusive="left")
+    have = detail.dropna(subset=["weather_run_utc", "icon_run_utc"]).groupby("farm")["issue_utc"].unique()
+    missing = sorted({i for farm in detail["farm"].unique()
+                      for i in issues.difference(pd.DatetimeIndex(have.get(farm, [])))})
+    if missing:
+        raise SystemExit(f"backfill {fam.NAME}: {len(missing)} issue hours have no usable weather run "
+                         f"({missing[0]:%Y-%m-%d %H}Z .. {missing[-1]:%Y-%m-%d %H}Z); fill the weather table first: "
+                         f"run.py weather {(missing[0] - pd.Timedelta(days=2)):%Y-%m-%d} {missing[-1]:%Y-%m-%d}")
 
 
 def backfill_write(fam, start_day: str, end_day: str) -> None:
