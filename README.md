@@ -83,7 +83,24 @@ do: [docs/OPERATIONS.md](docs/OPERATIONS.md).
 `git pull` in the install folder; the next cron run uses the new code. Saved models stay as they are; retrain only
 if the change says so (a new farm, a changed model). Never edit files on the server: change them in git.
 
-## Retraining (never automatic; a person decides)
+## Open-Meteo licence
+
+Without a key the free tier is used, which is for non-commercial use only: production needs the paid plan. Put its
+key in `.env` as `OPEN_METEO_API_KEY`; the next `run.py weather` uses the customer address (its first log line says
+which). The plan must include the Single Runs API (API Professional).
+
+## Logs
+
+`logs/run_YYYY-MM.log`, one line per step. `ERROR` = a family wrote nothing this hour (exit code 1). `WARN` = written,
+but something needs a look (late plant data, old weather, FALLBACK, a source without rows, an old model).
+`logs/cron.log` only gets what the log cannot catch (a crash before logging starts): it should stay empty. An hour
+skipped because the previous run still held the lock leaves no line; the next hourly run fills it.
+
+## Retraining (later, only when needed)
+
+Not part of the deployment: the first start above already trains and promotes the models. Use this only when
+the log warns that the active model is older than 14 days, or after a change that needs new models. Never
+automatic; a person decides.
 
 ```bash
 .venv/bin/python run.py compare h1       # report in reports/: REPLACE / KEEP / NO CLEAR DIFFERENCE
@@ -99,19 +116,6 @@ learned from.
 `compare` trains a test model on the data up to 14 days ago and scores it against the active model on the last
 14 days (same hours, data neither model was trained on). The hourly job warns in the log when the active model is
 older than 14 days.
-
-## Open-Meteo licence
-
-Without a key the free tier is used, which is for non-commercial use only: production needs the paid plan. Put its
-key in `.env` as `OPEN_METEO_API_KEY`; the next `run.py weather` uses the customer address (its first log line says
-which). The plan must include the Single Runs API (API Professional).
-
-## Logs
-
-`logs/run_YYYY-MM.log`, one line per step. `ERROR` = a family wrote nothing this hour (exit code 1). `WARN` = written,
-but something needs a look (late plant data, old weather, FALLBACK, a source without rows, an old model).
-`logs/cron.log` only gets what the log cannot catch (a crash before logging starts): it should stay empty. An hour
-skipped because the previous run still held the lock leaves no line; the next hourly run fills it.
 
 ## Code
 
