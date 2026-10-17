@@ -15,7 +15,7 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parents[1]      # the repository folder
 MODELS_DIR = ROOT / "saved_models"              # <family>/<version>/ + ACTIVE + history.jsonl (registry.py)
 LOG_DIR = ROOT / "logs"                         # run_<YYYY-MM>.log
-REPORT_DIR = ROOT / "reports"                   # train / compare / backfill output
+REPORT_DIR = ROOT / "reports"                   # compare reports, backfill and dry-run CSVs
 
 LOCAL_TZ = "Europe/Chisinau"
 

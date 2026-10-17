@@ -236,6 +236,9 @@ def collect(first: pd.Timestamp | None = None, last: pd.Timestamp | None = None,
     except ApiLimit as exc:                                 # every further request would fail: stop cleanly
         log(f"weather: STOPPED {exc}", "ERROR")
         return 1
+    except sa.exc.OperationalError as exc:
+        log(f"weather: STOPPED, weather database: {db.describe(db.engine(S.WEATHER_DB_ENV), exc)}", "ERROR")
+        return 1
 
 
 def _collect(first, last, models) -> int:

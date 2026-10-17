@@ -45,7 +45,7 @@ def status() -> int:
 
 
 def main() -> int:
-    ap = argparse.ArgumentParser(description=__doc__.splitlines()[0])
+    ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     sub = ap.add_subparsers(dest="cmd", required=True)
     p = sub.add_parser("hourly")
     p.add_argument("--dry-run", action="store_true", help="compute and save a CSV in reports/, write nothing")
