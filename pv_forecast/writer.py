@@ -53,7 +53,7 @@ select farmid, id_source, slot_ts, last_forecast_datetime as run from {table}
 where farmid = any(:farms) and id_source = any(:ids) and is_current = 1 and slot_ts >= :t0 and slot_ts < :t1
 """
 DEMOTE = """
-update {table} set is_current = 0
+update {table} set is_current = 0, updated_at = now()
 where is_current = 1 and farmid = :farmid and id_source = :id_source and slot_ts = any(:slots)
 """
 DOUBLE = """
