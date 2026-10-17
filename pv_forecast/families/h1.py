@@ -241,6 +241,19 @@ def fit(data: dict, fit_end: pd.Timestamp) -> dict:
     return {name: _fit_farm(d["cf"], d["geo"], fit_end) for name, d in data.items()}
 
 
+def weather_holes(data: dict) -> list[str]:
+    """Hours with plant data but no usable ECMWF or ICON-EU weather (training needs none: the ARIMAX cannot skip)."""
+    out = []
+    for farm, d in data.items():
+        cols = [*WCOLS, *WEATHER_SETS["weather_icon"]]
+        gap = d["cf"].notna() & d["geo"][cols].isna().any(axis=1)
+        if gap.any():
+            hours = d["cf"].index[gap].floor("h").unique()
+            out.append(f"{farm}: {len(hours)} hours without weather ({hours[0]:%Y-%m-%d %H}Z .. "
+                       f"{hours[-1]:%Y-%m-%d %H}Z)")
+    return out
+
+
 def problems(fitted: dict) -> list[str]:
     return [f"{farm} {n} did not converge" for farm, f in fitted.items() for n in ARIMAX_NAMES
             if not f[n]["converged"]]
@@ -311,10 +324,13 @@ def _forecast_farm(cf: pd.Series, geo: pd.DataFrame, fitted: dict, hours: pd.Dat
 
 
 def predict(data: dict, fitted: dict, issues: pd.DatetimeIndex) -> pd.DataFrame:
-    """The 4 quarters of every issue hour, every farm, in MW (see the module docstring)."""
+    """The 4 quarters of every issue hour, every farm, in MW (see the module docstring). Issues before the training
+    end are refused."""
     out = []
     for farm in S.FARMS:
         d, f = data[farm.name], fitted[farm.name]
+        if (issues < pd.Timestamp(f["info"]["trained_to_utc"])).any():
+            raise ValueError(f"{farm.name}: forecasting issues before the training end")
         idx = pd.date_range(issues[0] - HISTORY, issues[-1] + HORIZON, freq="15min", inclusive="left")
         if idx[0] < d["cf"].index[0] or idx[-1] > d["cf"].index[-1]:
             raise ValueError(f"{farm.name}: data do not cover {idx[0]} .. {idx[-1]}")

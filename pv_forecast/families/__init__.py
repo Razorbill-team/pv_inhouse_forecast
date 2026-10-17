@@ -10,6 +10,7 @@
                                         data[farm]["cf"] = plant capacity factor per slot (data checks);
                                         data[farm]["counts"] = input quality counts for the log
     fit(data, fit_end)               -> fitted: trained on what was known before fit_end only
+    weather_holes(data)              -> list of words: training hours without the weather the models need
     problems(fitted)                 -> list of words: a fit that must not be used (e.g. not converged)
     save(fitted, folder) / load(folder)
     summary(fitted)                  -> dict for meta.json and the log

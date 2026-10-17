@@ -47,7 +47,7 @@ group by 1
 """
 # Weather rows of the hours [t0, t1) from every run usable at the hour start (publication delay and age limit)
 NEWEST_SQL = """
-select run_utc, slot_start_utc, lead_h, {cols}
+select run_utc, slot_start_utc, lead_h, panel_tilt, panel_azimuth, {cols}
 from {table}
 where site = :site and model = :model
   and slot_start_utc >= :t0 and slot_start_utc < :t1
@@ -137,6 +137,14 @@ def _read_weather(eng: sa.Engine, template: str, cols: list[str], **params) -> p
     return d
 
 
+def _check_panel(d: pd.DataFrame, farm: S.Farm) -> None:
+    """Raise if a weather row's panel plane (global_tilted_irradiance) is not the farm's (Open-Meteo azimuth
+    0 = south = our 180)."""
+    if not ((d["panel_tilt"] == farm.tilt) & (d["panel_azimuth"] == farm.azimuth - 180)).all():
+        raise ValueError(f"{farm.name}: weather panel plane is not tilt {farm.tilt}, azimuth {farm.azimuth}: "
+                         f"{d[['panel_tilt', 'panel_azimuth']].drop_duplicates().to_dict('records')}")
+
+
 def weather_newest(eng: sa.Engine, farm: S.Farm, start_utc: pd.Timestamp, end_utc: pd.Timestamp, model: str,
                    cols: dict[str, str], delay_h: int, max_age_h: int) -> tuple[pd.DataFrame, dict]:
     """Weather forecast of `model` per 15-min slot of [start_utc, end_utc): for each hour H the row of the newest run
@@ -145,6 +153,7 @@ def weather_newest(eng: sa.Engine, farm: S.Farm, start_utc: pd.Timestamp, end_ut
     run is missing (never filled). Returns (frame, counts: hours, missing hours, hours from an older run)."""
     d = _read_weather(eng, NEWEST_SQL, list(cols), site=farm.site, model=model, t0=start_utc.floor("h"),
                       t1=end_utc.ceil("h"), delay_h=delay_h, age_h=max_age_h)
+    _check_panel(d, farm)
     d = d.sort_values(["slot_start_utc", "run_utc"])
     newest = d.drop_duplicates("slot_start_utc", keep="last").set_index("slot_start_utc")["run_utc"]
     usable = d.dropna(subset=list(cols)).drop_duplicates("slot_start_utc", keep="last")
@@ -168,9 +177,7 @@ def weather_runs(eng: sa.Engine, farm: S.Farm, t0: pd.Timestamp, t1: pd.Timestam
         if required:
             raise ValueError(f"{farm.name}: no {model} rows for {farm.site} in [{t0}, {t1})")
         return pd.DataFrame(columns=["run_utc", "slot_start_utc", "lead_h", *cols.values()])
-    if not ((d["panel_tilt"] == farm.tilt) & (d["panel_azimuth"] == farm.azimuth - 180)).all():
-        raise ValueError(f"{farm.name}: weather panel plane is not tilt {farm.tilt}, azimuth {farm.azimuth}: "
-                         f"{d[['panel_tilt', 'panel_azimuth']].drop_duplicates().to_dict('records')}")
+    _check_panel(d, farm)
     d = d.drop(columns=["panel_tilt", "panel_azimuth"]).rename(columns=cols)
     return d.sort_values(["run_utc", "slot_start_utc"]).reset_index(drop=True)
 

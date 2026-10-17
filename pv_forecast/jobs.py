@@ -47,6 +47,9 @@ def _issues(fam, write_eng, hour: pd.Timestamp, trained_to: pd.Timestamp) -> pd.
     except Exception as exc:                                # noqa: BLE001 - say plainly what failed
         raise RuntimeError(f"cannot read the forecast table: {db.describe(write_eng, exc)}") from None
     first = hour - (S.CATCHUP_MAX_H - 1) * HOUR
+    if last is None:
+        log(f"{fam.NAME}: no rows of its sources in the table yet: making the last {S.CATCHUP_MAX_H} h only; "
+            "earlier days: run.py backfill", "WARN")
     if last is not None and last + HOUR < first:
         log(f"{fam.NAME}: newest written issue {last:%Y-%m-%d %H}Z is more than {S.CATCHUP_MAX_H} h ago; "
             f"hours before {first:%Y-%m-%d %H}Z stay empty: fill them with run.py backfill", "WARN")
@@ -106,7 +109,10 @@ def hourly(dry_run: bool = False, no_wait: bool = False) -> int:
             if fam.NAME == "h1":
                 detail = fallback_h1(write_eng, detail, fam.SOURCES, hour, stamp)
             rows = writer.rows(detail, fam.SOURCES, hour, stamp)
-            _log_inputs(fam, data, detail, hour)
+            _log_inputs(fam, data, detail, issues, hour)
+            if rows.empty:
+                raise RuntimeError(f"no rows for issues {issues[0]:%m-%d %H}Z .. {issues[-1]:%m-%d %H}Z "
+                                   "(no usable weather run or plant data; see the WARN lines above)")
             if dry_run:
                 S.REPORT_DIR.mkdir(exist_ok=True)
                 path = S.REPORT_DIR / f"dry_run_{fam.NAME}_{hour:%Y%m%dT%H}Z.csv"
@@ -115,7 +121,10 @@ def hourly(dry_run: bool = False, no_wait: bool = False) -> int:
             elif writer.write(write_eng, rows) is None:
                 failed.append(fam.NAME)
         except (Exception, SystemExit) as exc:              # one family failing must not stop the other
-            log(f"{fam.NAME}: FAILED {type(exc).__name__}: {exc} | {traceback.format_exc()[-1500:]}", "ERROR")
+            if isinstance(exc, sa.exc.OperationalError):    # plant / weather database: say it plainly
+                log(f"{fam.NAME}: FAILED reading production: {db.describe(read_eng, exc)}", "ERROR")
+            else:
+                log(f"{fam.NAME}: FAILED {type(exc).__name__}: {exc} | {traceback.format_exc()[-1500:]}", "ERROR")
             failed.append(fam.NAME)
     log(f"done; failed: {failed or 'none'}; warnings and errors: {len(PROBLEMS)}")
     return 1 if failed else 0
@@ -168,9 +177,14 @@ def fallback_h1(eng, detail: pd.DataFrame, sources: dict, live_issue: pd.Timesta
     return detail
 
 
-def _log_inputs(fam, data: dict, detail: pd.DataFrame, hour: pd.Timestamp) -> None:
+def _log_inputs(fam, data: dict, detail: pd.DataFrame, issues: pd.DatetimeIndex, hour: pd.Timestamp) -> None:
     """Per farm: input counts (plant and weather quality), the current issue's mean MW per source; WARN for issues
-    with no rows from a source, or weather runs older than WEATHER_OLD_H at the issue."""
+    with no rows at all or none from a source, or weather runs older than WEATHER_OLD_H at the issue."""
+    for farm in data:
+        absent = issues.difference(pd.DatetimeIndex(detail.loc[detail["farm"] == farm, "issue_utc"].unique()))
+        if len(absent):
+            log(f"{fam.NAME} {farm}: {len(absent)} of {len(issues)} issues have no forecast at all (newest "
+                f"{absent.max():%m-%d %H}Z): no usable weather run", "WARN")
     for farm, g in detail.groupby("farm"):
         log(f"{fam.NAME} {farm}: inputs {data[farm]['counts']}")
         now = g[g["issue_utc"] == hour]
@@ -185,9 +199,11 @@ def _log_inputs(fam, data: dict, detail: pd.DataFrame, hour: pd.Timestamp) -> No
                     f"(newest {none[none].index.max():%m-%d %H}Z): missing plant data or weather", "WARN")
         for col in ("weather_run_utc", "icon_run_utc"):
             age = (g["issue_utc"] - g[col]).max() / pd.Timedelta(hours=1)
-            if not age <= S.WEATHER_OLD_H:
-                log(f"{fam.NAME} {farm}: {col} up to {age:.0f} h older than the issue, or missing "
-                    "(is run.py weather running?)", "WARN")
+            if g[col].isna().any():
+                log(f"{fam.NAME} {farm}: {col} missing for some issues (is run.py weather running?)", "WARN")
+            elif age > S.WEATHER_OLD_H:
+                log(f"{fam.NAME} {farm}: {col} up to {age:.0f} h older than the issue (is run.py weather running?)",
+                    "WARN")
 
 
 # ------------------------------------------------------------------ train
@@ -219,9 +235,10 @@ def train(fam, end_day: str | None = None) -> str:
     end = utc(end_day) if end_day else today_utc()
     if end > today_utc():
         raise SystemExit(f"--end {end_day} is in the future: the model would block forecasts until then")
-    log(f"{fam.NAME}: training on {S.TRAIN_START} .. {end.tz_convert(S.LOCAL_TZ):%Y-%m-%d} (local days)")
+    log(f"{fam.NAME}: training on local days {S.TRAIN_START} .. before {end.tz_convert(S.LOCAL_TZ):%Y-%m-%d}")
     data = fam.read(db.engine(S.READ_DB_ENV), utc(S.TRAIN_START), end)
     checked, bad = data_check(data, end)
+    bad += [f"{h}; fill the weather table: run.py weather FIRST LAST" for h in fam.weather_holes(data)]
     if bad:
         raise SystemExit(f"train {fam.NAME}: NOT saved: {bad}; the active model stays as it is")
     fitted = fam.fit(data, end)
