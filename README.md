@@ -42,22 +42,21 @@ cp .env.example .env && nano .env && chmod 600 .env    # fill every field (comme
 
 ## First start
 
+The trained models ship with the code (`saved_models/`, trained on data before 2026-10-17, already active), so
+there is nothing to train. They are good for the next weeks; the log says when retraining should be considered
+(see "Retraining" at the end).
+
 ```bash
+.venv/bin/python run.py status           # h1 and h48 each show one version marked * (active)
 .venv/bin/python run.py weather          # weather runs of the last 7 days; the last line must say "0 failure(s)"
-.venv/bin/python run.py train h1 --end 2026-10-17     # about 3 min; use exactly this date for the first deployment
-.venv/bin/python run.py train h48 --end 2026-10-17    # about 3 min
-.venv/bin/python run.py status           # lists the saved versions, e.g. 2026-10-17_20261018T091500Z
-.venv/bin/python run.py promote h1 <version shown for h1>
-.venv/bin/python run.py promote h48 <version shown for h48>
 .venv/bin/python run.py hourly --dry-run # computes and saves a CSV in reports/; writes nothing to the table
 ```
 
 The dry run is good when its last line says `done; failed: none`. Then add the schedule below.
 
-Why `--end 2026-10-17`: a model never forecasts hours before its training end, and the table already holds
-forecasts up to 2026-10-17. With this date the first hourly run fills every hour since then by itself (up to 48 h).
-If the log still warns "issue hours ... before the active model's training end", fill them with
-`run.py backfill FAMILY START END`, check the CSV in `reports/`, then run the same command with `--write`.
+The table already holds forecasts up to 2026-10-17 06:00 UTC. The first hourly run fills every hour since then by
+itself, up to 48 h back, so start the schedule before 2026-10-19 06:00 UTC. Later than that, fill the older hours
+once with `run.py backfill FAMILY START END`, check the CSV in `reports/`, then the same command with `--write`.
 
 ## Schedule (crontab -e, same user as the install)
 
@@ -81,7 +80,8 @@ do: [docs/OPERATIONS.md](docs/OPERATIONS.md).
 ## Update the code
 
 `git pull` in the install folder; the next cron run uses the new code. Saved models stay as they are; retrain only
-if the change says so (a new farm, a changed model). Never edit files on the server: change them in git.
+if the change says so (a new farm, a changed model). Never edit or commit files on the server: change them in git.
+Models trained on the server stay on the server (`saved_models/`, not in git).
 
 ## Open-Meteo licence
 

@@ -4,7 +4,10 @@
 .venv/
 __pycache__/
 *.pyc
-# Made on the server, not code: trained models, logs, reports
-saved_models/
+# Made on the server: logs, reports, and models trained there. The first models (data before 2026-10-17)
+# ship with the code, with ACTIVE and history.jsonl, so a new install needs no training.
 logs/
 reports/
+saved_models/*/*/
+!saved_models/h1/2026-10-17_20261017T081954Z/
+!saved_models/h48/2026-10-17_20261017T082232Z/

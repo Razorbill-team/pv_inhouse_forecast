@@ -1,0 +1,147 @@
+{
+ "family": "h48",
+ "version": "2026-10-17_20261017T082232Z",
+ "trained_to_utc": "2026-10-16 21:00:00+00:00",
+ "saved_utc": "2026-10-17 08:22:32+00:00",
+ "code_version": "c8ba3de",
+ "summary": {
+  "trained_to_utc": "2026-10-16 21:00:00+00:00",
+  "xgboost_rows": 200696,
+  "radeni_ppa": {
+   "arimax": {
+    "linear_rows": 336528,
+    "beta": {
+     "om_gti": 0.023585,
+     "dni_x_cloud": -0.002456
+    },
+    "arma": {
+     "ar.L1": 1.1198,
+     "ar.L2": -0.216,
+     "ma.L1": -0.5094,
+     "ma.L2": -0.104,
+     "sigma2": 3.1392
+    },
+    "arma_converged": true
+   },
+   "arimax_ecmwf_icon": {
+    "linear_rows": 336528,
+    "beta": {
+     "mean_gti": 0.024615,
+     "mean_dni_x_cloud": -0.00079
+    },
+    "arma": {
+     "ar.L1": 1.12,
+     "ar.L2": -0.2186,
+     "ma.L1": -0.5466,
+     "ma.L2": -0.1117,
+     "sigma2": 2.9485
+    },
+    "arma_converged": true
+   }
+  },
+  "negureni_ppa": {
+   "arimax": {
+    "linear_rows": 265440,
+    "beta": {
+     "om_gti": 0.012496,
+     "dni_x_cloud": -0.001963
+    },
+    "arma": {
+     "ar.L1": 0.9882,
+     "ar.L2": -0.0831,
+     "ma.L1": -0.3908,
+     "ma.L2": -0.1266,
+     "sigma2": 0.9622
+    },
+    "arma_converged": true
+   },
+   "arimax_ecmwf_icon": {
+    "linear_rows": 265440,
+    "beta": {
+     "mean_gti": 0.013297,
+     "mean_dni_x_cloud": -0.001763
+    },
+    "arma": {
+     "ar.L1": 0.965,
+     "ar.L2": -0.0739,
+     "ma.L1": -0.3886,
+     "ma.L2": -0.1353,
+     "sigma2": 0.9278
+    },
+    "arma_converged": true
+   }
+  }
+ },
+ "data_check": {
+  "radeni_ppa": {
+   "days": 129,
+   "first": "2026-06-10",
+   "last": "2026-10-16",
+   "last_7_days": 7,
+   "missing_pct": 1.0
+  },
+  "negureni_ppa": {
+   "days": 103,
+   "first": "2026-07-06",
+   "last": "2026-10-16",
+   "last_7_days": 7,
+   "missing_pct": 0.4
+  }
+ },
+ "data_counts": {
+  "radeni_ppa": {
+   "plant": {
+    "slots": 12429,
+    "missing": 151,
+    "partial_slot": 40,
+    "frozen": 233,
+    "over_rated": 0,
+    "dst_dropped": 0
+   },
+   "pairs": {
+    "issues": 3072,
+    "issues_without_run": 0,
+    "runs_usable": 521,
+    "runs_left_out": [
+     "2026-06-22 18:00:00+00:00",
+     "2026-06-23 00:00:00+00:00"
+    ],
+    "icon_issues_without_run": 0,
+    "icon_runs_usable": 523,
+    "icon_runs_left_out": [
+     "2026-06-10 18:00:00+00:00"
+    ],
+    "pairs": 589824,
+    "pairs_without_weather": 12,
+    "pairs_without_2wx": 12
+   }
+  },
+  "negureni_ppa": {
+   "plant": {
+    "slots": 12429,
+    "missing": 2568,
+    "partial_slot": 18,
+    "frozen": 56,
+    "over_rated": 0,
+    "dst_dropped": 0
+   },
+   "pairs": {
+    "issues": 3072,
+    "issues_without_run": 0,
+    "runs_usable": 521,
+    "runs_left_out": [
+     "2026-06-22 18:00:00+00:00",
+     "2026-06-23 00:00:00+00:00"
+    ],
+    "icon_issues_without_run": 0,
+    "icon_runs_usable": 523,
+    "icon_runs_left_out": [
+     "2026-06-10 18:00:00+00:00"
+    ],
+    "pairs": 589824,
+    "pairs_without_weather": 12,
+    "pairs_without_2wx": 12
+   }
+  }
+ }
+}
